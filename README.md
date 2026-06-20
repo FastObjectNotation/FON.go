@@ -1,13 +1,13 @@
-# FON — Fast Object Notation (Go binding)
+# FON — Fast Object Notation
 
 [![CI](https://github.com/FastObjectNotation/FON.go/actions/workflows/ci.yml/badge.svg)](https://github.com/FastObjectNotation/FON.go/actions/workflows/ci.yml)
 
-Go bindings for **FON** (Fast Object Notation) — a fast, human-readable,
-line-oriented serialization format. Each line is one record; values are typed
-and can nest.
+**FON** (Fast Object Notation) is a fast, human-readable, line-oriented
+serialization format. Each line is one record; values are typed and can nest.
 
-The binding wraps the `fon_native` Rust cdylib via **cgo**. The Rust library
-is compiled from source in the `native/` directory.
+```
+go get github.com/FastObjectNotation/FON.go@v0.3.0
+```
 
 ## Features
 
@@ -15,7 +15,7 @@ is compiled from source in the `native/` directory.
 - **Typed values** — numeric/bool/string primitives, binary blobs, nested
   objects, and arrays of any of them.
 - **Nested objects & arrays of objects**, with a configurable maximum depth.
-- **Parallel** dump serialization and deserialization via [Rayon](https://crates.io/crates/rayon).
+- **Parallel** dump serialization and deserialization.
 - **Byte-oriented parsing** — reads straight from `[]byte`, BOM tolerant.
 - **Z85 binary encoding** for raw blobs (5 ASCII chars per 4 bytes).
 - **Idiomatic Go API** — `Collection` and `Dump` types with clear ownership
@@ -58,18 +58,17 @@ and `o` supports both nested objects (`{...}`) and arrays of objects
 ## Install
 
 ```
-go get github.com/FastObjectNotation/FON.go
+go get github.com/FastObjectNotation/FON.go@v0.3.0
 ```
 
 > **cgo prerequisite:** a C compiler must be present (`gcc` / `mingw-w64` on
 > Windows, Xcode CLT / `clang` on macOS, `gcc` on Linux). CGO\_ENABLED=1 is
 > required (the Go default when a C compiler is available).
 
-> **Native library:** build the Rust cdylib first and ensure
-> `native/target/release/fon_native.dll` (Windows) /
-> `libfon_native.so` (Linux) / `libfon_native.dylib` (macOS) is on the
-> runtime library search path. Pre-built binaries are attached to each
+> **Native library:** pre-built binaries are attached to each
 > [GitHub Release](https://github.com/FastObjectNotation/FON.go/releases).
+> Copy the appropriate file onto your library search path (or bundle it
+> alongside your binary) before running applications that import this package.
 
 ### Build the native library from source
 
@@ -124,7 +123,7 @@ for i := 0; i < 1000; i++ {
     // row is now owned by dump — do not call row.Close()
 }
 
-serialized, _ := dump.SerializeToBytes(0) // 0 = use global Rayon pool
+serialized, _ := dump.SerializeToBytes(0) // 0 = use global thread pool
 
 dump2, _ := fon.DeserializeDumpFromBytes(serialized, 0)
 defer dump2.Close()
@@ -138,13 +137,13 @@ fmt.Println(text) // row 0
 ### Version check
 
 ```go
-fmt.Println(fon.NativeVersion()) // 0.2.1
+fmt.Println(fon.NativeVersion()) // e.g. "0.3.0"
 ```
 
 ## Build
 
 ```bash
-# 1. Build the Rust cdylib:
+# 1. Build the native library:
 cargo build --release --manifest-path native/Cargo.toml
 
 # 2. Run Go tests (requires gcc / mingw):

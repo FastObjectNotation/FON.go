@@ -1,5 +1,9 @@
-// Package fon provides Go bindings for the FON (Fast Object Notation)
-// serialization library via cgo, wrapping the fon_native Rust cdylib.
+// Package fon implements the FON (Fast Object Notation) serialization format.
+//
+// FON is a fast, human-readable, line-oriented format where each line is one
+// record — a comma-separated list of key=type:value pairs. Values can be
+// primitives (integers, floats, booleans, strings, raw blobs) or nested
+// objects and arrays.
 //
 // Build prerequisites:
 //   - A C compiler (gcc / mingw-w64 on Windows, clang on macOS/Linux)

@@ -99,7 +99,7 @@ jobs:
           body: |
             ## FON.go ${{ env.RELEASE_TAG }}
 
-            Go bindings for the [FON](https://github.com/FastObjectNotation/FON.rust) serialization library.
+            FON (Fast Object Notation) — a fast, human-readable, line-oriented serialization format.
 
             ### Installation
 
