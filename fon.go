@@ -69,7 +69,7 @@ func checkRC(rc C.int32_t, e C.FonError) error {
 }
 
 
-// NativeVersion returns the version string reported by the native library (e.g. "0.2.1").
+// NativeVersion returns the version string reported by the native library (e.g. "0.3.0").
 func NativeVersion() string {
 	return C.GoString(C.fon_version())
 }

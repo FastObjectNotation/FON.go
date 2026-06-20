@@ -10,7 +10,7 @@ import (
 
 // TestNativeVersion asserts the library reports the expected version string.
 func TestNativeVersion(t *testing.T) {
-	want := "0.2.1"
+	want := "0.3.0"
 	got := fon.NativeVersion()
 	if got != want {
 		t.Fatalf("NativeVersion() = %q, want %q", got, want)

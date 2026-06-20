@@ -33,7 +33,7 @@ typedef struct {
 
 /* ==================== VERSION ==================== */
 
-/* Returns a static, null-terminated version string (e.g. "0.2.1"). */
+/* Returns a static, null-terminated version string (e.g. "0.3.0"). */
 const char* fon_version(void);
 
 
