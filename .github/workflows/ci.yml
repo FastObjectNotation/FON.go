@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build-and-test:
+    name: Build cdylib and run Go tests
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    steps:
+      - name: Checkout (with submodules)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up stable Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-${{ hashFiles('native/Cargo.toml', 'native/fon-rust/Cargo.toml') }}
+          restore-keys: ${{ runner.os }}-cargo-
+
+      - name: Build fon_native (release)
+        run: cargo build --release --manifest-path native/Cargo.toml
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+          cache: true
+
+      - name: Install gcc (Windows)
+        if: runner.os == 'Windows'
+        run: choco install mingw --no-progress -y
+
+      - name: Run Go tests (Linux / macOS)
+        if: runner.os != 'Windows'
+        run: go test -v ./...
+        env:
+          CGO_ENABLED: "1"
+          CGO_LDFLAGS: "-L${{ github.workspace }}/native/target/release -lfon_native -Wl,-rpath,${{ github.workspace }}/native/target/release"
+
+      - name: Run Go tests (Windows)
+        if: runner.os == 'Windows'
+        run: go test -v ./...
+        env:
+          CGO_ENABLED: "1"
+          CGO_LDFLAGS: "-L${{ github.workspace }}/native/target/release -lfon_native"

@@ -1,0 +1,205 @@
+package fon_test
+
+import (
+	"strings"
+	"testing"
+
+	fon "github.com/FastObjectNotation/FON.go"
+)
+
+
+// TestNativeVersion asserts the library reports the expected version string.
+func TestNativeVersion(t *testing.T) {
+	want := "0.2.1"
+	got := fon.NativeVersion()
+	if got != want {
+		t.Fatalf("NativeVersion() = %q, want %q", got, want)
+	}
+}
+
+
+// TestRoundtrip builds a collection (id, name, price), adds it to a dump,
+// serializes to a UTF-8 buffer, deserializes back, and asserts field equality.
+func TestRoundtrip(t *testing.T) {
+	// Build the collection.
+	c := fon.NewCollection()
+	defer c.Close()
+
+	if err := c.AddInt("id", 42); err != nil {
+		t.Fatalf("AddInt: %v", err)
+	}
+	if err := c.AddString("name", "Test Item"); err != nil {
+		t.Fatalf("AddString: %v", err)
+	}
+	if err := c.AddDouble("price", 99.99); err != nil {
+		t.Fatalf("AddDouble: %v", err)
+	}
+
+	// Wrap it in a Dump.
+	dump := fon.NewDump()
+	defer dump.Close()
+
+	// fon_dump_add takes ownership of c; we must not Close c after this call.
+	// We wrap in a dedicated variable so that the deferred Close on the original
+	// does not run (we nil-out by transferring to the dump).
+	cOwned := fon.NewCollection()
+	if err := cOwned.AddInt("id", 42); err != nil {
+		t.Fatalf("AddInt (owned): %v", err)
+	}
+	if err := cOwned.AddString("name", "Test Item"); err != nil {
+		t.Fatalf("AddString (owned): %v", err)
+	}
+	if err := cOwned.AddDouble("price", 99.99); err != nil {
+		t.Fatalf("AddDouble (owned): %v", err)
+	}
+	if err := dump.Add(0, cOwned); err != nil {
+		t.Fatalf("Dump.Add: %v", err)
+	}
+	// cOwned is now owned by dump — no Close needed.
+
+	if dump.Size() != 1 {
+		t.Fatalf("Dump.Size() = %d, want 1", dump.Size())
+	}
+
+	// Serialize to bytes.
+	serialized, err := dump.SerializeToBytes(0)
+	if err != nil {
+		t.Fatalf("SerializeToBytes: %v", err)
+	}
+	if len(serialized) == 0 {
+		t.Fatal("serialized output is empty")
+	}
+	t.Logf("serialized: %s", serialized)
+
+	// Verify the FON wire format contains expected tokens.
+	line := strings.TrimSpace(string(serialized))
+	if !strings.Contains(line, "id=i:42") {
+		t.Errorf("serialized does not contain 'id=i:42': %s", line)
+	}
+	if !strings.Contains(line, `name=s:"Test Item"`) {
+		t.Errorf("serialized does not contain 'name=s:\"Test Item\"': %s", line)
+	}
+	if !strings.Contains(line, "price=d:") {
+		t.Errorf("serialized does not contain 'price=d:': %s", line)
+	}
+
+	// Deserialize back.
+	dump2, err := fon.DeserializeDumpFromBytes(serialized, 0)
+	if err != nil {
+		t.Fatalf("DeserializeDumpFromBytes: %v", err)
+	}
+	defer dump2.Close()
+
+	if dump2.Size() != 1 {
+		t.Fatalf("deserialized Dump.Size() = %d, want 1", dump2.Size())
+	}
+
+	col, err := dump2.Get(0)
+	if err != nil {
+		t.Fatalf("Dump.Get(0): %v", err)
+	}
+	// col is borrowed; do NOT close it.
+
+	gotID, err := col.GetInt("id")
+	if err != nil {
+		t.Fatalf("GetInt(id): %v", err)
+	}
+	if gotID != 42 {
+		t.Errorf("id = %d, want 42", gotID)
+	}
+
+	gotName, err := col.GetString("name")
+	if err != nil {
+		t.Fatalf("GetString(name): %v", err)
+	}
+	if gotName != "Test Item" {
+		t.Errorf("name = %q, want %q", gotName, "Test Item")
+	}
+
+	gotPrice, err := col.GetDouble("price")
+	if err != nil {
+		t.Fatalf("GetDouble(price): %v", err)
+	}
+	if gotPrice != 99.99 {
+		t.Errorf("price = %f, want 99.99", gotPrice)
+	}
+}
+
+
+// TestCollectionSerializeRoundtrip serializes a single collection to a buffer
+// and deserializes it back without going through a Dump.
+func TestCollectionSerializeRoundtrip(t *testing.T) {
+	src := fon.NewCollection()
+	defer src.Close()
+
+	if err := src.AddLong("ts", 1700000000); err != nil {
+		t.Fatalf("AddLong: %v", err)
+	}
+	if err := src.AddBool("active", true); err != nil {
+		t.Fatalf("AddBool: %v", err)
+	}
+
+	data, err := src.SerializeToBytes()
+	if err != nil {
+		t.Fatalf("SerializeToBytes: %v", err)
+	}
+	t.Logf("collection serialized: %s", data)
+
+	dst, err := fon.DeserializeCollectionFromBytes(data)
+	if err != nil {
+		t.Fatalf("DeserializeCollectionFromBytes: %v", err)
+	}
+	defer dst.Close()
+
+	ts, err := dst.GetLong("ts")
+	if err != nil {
+		t.Fatalf("GetLong: %v", err)
+	}
+	if ts != 1700000000 {
+		t.Errorf("ts = %d, want 1700000000", ts)
+	}
+
+	active, err := dst.GetBool("active")
+	if err != nil {
+		t.Fatalf("GetBool: %v", err)
+	}
+	if !active {
+		t.Errorf("active = %v, want true", active)
+	}
+}
+
+
+// TestIntArray verifies add/get round-trip for integer arrays.
+func TestIntArray(t *testing.T) {
+	c := fon.NewCollection()
+	defer c.Close()
+
+	want := []int32{10, 20, 30, 40, 50}
+	if err := c.AddIntArray("scores", want); err != nil {
+		t.Fatalf("AddIntArray: %v", err)
+	}
+
+	data, err := c.SerializeToBytes()
+	if err != nil {
+		t.Fatalf("SerializeToBytes: %v", err)
+	}
+
+	c2, err := fon.DeserializeCollectionFromBytes(data)
+	if err != nil {
+		t.Fatalf("DeserializeCollectionFromBytes: %v", err)
+	}
+	defer c2.Close()
+
+	got, err := c2.GetIntArray("scores")
+	if err != nil {
+		t.Fatalf("GetIntArray: %v", err)
+	}
+	if len(got) != len(want) {
+		t.Fatalf("len(scores) = %d, want %d", len(got), len(want))
+	}
+	for i, v := range want {
+		if got[i] != v {
+			t.Errorf("scores[%d] = %d, want %d", i, got[i], v)
+		}
+	}
+}
