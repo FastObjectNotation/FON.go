@@ -169,6 +169,94 @@ func TestCollectionSerializeRoundtrip(t *testing.T) {
 }
 
 
+// TestCollectionArray verifies the add/get round-trip for an array of nested
+// collections (fon_collection_add_collection_array /
+// fon_collection_get_collection_array).
+func TestCollectionArray(t *testing.T) {
+	// Build two sub-collections.
+	item0 := fon.NewCollection()
+	if err := item0.AddInt("id", 1); err != nil {
+		t.Fatalf("item0.AddInt: %v", err)
+	}
+	if err := item0.AddString("name", "Alpha"); err != nil {
+		t.Fatalf("item0.AddString: %v", err)
+	}
+
+	item1 := fon.NewCollection()
+	if err := item1.AddInt("id", 2); err != nil {
+		t.Fatalf("item1.AddInt: %v", err)
+	}
+	if err := item1.AddString("name", "Beta"); err != nil {
+		t.Fatalf("item1.AddString: %v", err)
+	}
+
+	// Build the parent and transfer ownership of both items.
+	parent := fon.NewCollection()
+	defer parent.Close()
+
+	if err := parent.AddCollectionArray("items", []*fon.Collection{item0, item1}); err != nil {
+		t.Fatalf("AddCollectionArray: %v", err)
+	}
+	// item0 and item1 are now owned by parent — do NOT close them.
+
+	// Serialize the parent to bytes.
+	data, err := parent.SerializeToBytes()
+	if err != nil {
+		t.Fatalf("SerializeToBytes: %v", err)
+	}
+	t.Logf("collection_array serialized: %s", data)
+
+	// Deserialize back.
+	dst, err := fon.DeserializeCollectionFromBytes(data)
+	if err != nil {
+		t.Fatalf("DeserializeCollectionFromBytes: %v", err)
+	}
+	defer dst.Close()
+
+	// Retrieve the collection array.
+	items, err := dst.GetCollectionArray("items")
+	if err != nil {
+		t.Fatalf("GetCollectionArray: %v", err)
+	}
+	if len(items) != 2 {
+		t.Fatalf("len(items) = %d, want 2", len(items))
+	}
+	// items are borrowed — do NOT close them.
+
+	// Verify item 0.
+	id0, err := items[0].GetInt("id")
+	if err != nil {
+		t.Fatalf("items[0].GetInt: %v", err)
+	}
+	if id0 != 1 {
+		t.Errorf("items[0].id = %d, want 1", id0)
+	}
+	name0, err := items[0].GetString("name")
+	if err != nil {
+		t.Fatalf("items[0].GetString: %v", err)
+	}
+	if name0 != "Alpha" {
+		t.Errorf("items[0].name = %q, want %q", name0, "Alpha")
+	}
+
+	// Verify item 1.
+	id1, err := items[1].GetInt("id")
+	if err != nil {
+		t.Fatalf("items[1].GetInt: %v", err)
+	}
+	if id1 != 2 {
+		t.Errorf("items[1].id = %d, want 2", id1)
+	}
+	name1, err := items[1].GetString("name")
+	if err != nil {
+		t.Fatalf("items[1].GetString: %v", err)
+	}
+	if name1 != "Beta" {
+		t.Errorf("items[1].name = %q, want %q", name1, "Beta")
+	}
+}
+
+
 // TestIntArray verifies add/get round-trip for integer arrays.
 func TestIntArray(t *testing.T) {
 	c := fon.NewCollection()

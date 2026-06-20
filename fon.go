@@ -406,6 +406,47 @@ func (c *Collection) GetFloatArray(key string) ([]float32, error) {
 }
 
 
+// AddCollectionArray nests an ordered array of children under key inside c.
+//
+// OWNERSHIP: on success, every handle in children is owned by c. The caller
+// MUST NOT call Close on any child and MUST NOT pass any child to any other
+// function. On error, no ownership transfer occurs and the caller retains
+// ownership of all children.
+func (c *Collection) AddCollectionArray(key string, children []*Collection) error {
+	cKey := C.CString(key)
+	defer C.free(unsafe.Pointer(cKey))
+
+	count := len(children)
+	// Build a C array of void* handles.
+	cArr := make([]unsafe.Pointer, count)
+	for i, child := range children {
+		cArr[i] = child.ptr
+	}
+
+	var ptr *unsafe.Pointer
+	if count > 0 {
+		ptr = (*unsafe.Pointer)(unsafe.Pointer(&cArr[0]))
+	}
+
+	var e C.FonError
+	rc := C.fon_collection_add_collection_array(
+		c.ptr,
+		cKey,
+		ptr,
+		C.int64_t(count),
+		&e,
+	)
+	if rc == C.FON_OK {
+		// Ownership of every child has transferred to c.
+		for _, child := range children {
+			child.owned = false
+			runtime.SetFinalizer(child, nil)
+		}
+	}
+	return checkRC(rc, e)
+}
+
+
 // GetCollection returns a BORROWED handle to a nested collection under key.
 // The caller MUST NOT close this handle.
 func (c *Collection) GetCollection(key string) (*Collection, error) {
@@ -417,6 +458,45 @@ func (c *Collection) GetCollection(key string) (*Collection, error) {
 		return nil, fonError(e)
 	}
 	return &Collection{ptr: p, owned: false}, nil
+}
+
+
+// GetCollectionArray returns BORROWED handles to every element of a nested
+// collection-array stored under key, using the two-call pattern.
+//
+// OWNERSHIP: all returned handles are owned by c. The caller MUST NOT call
+// Close on any of them.
+func (c *Collection) GetCollectionArray(key string) ([]*Collection, error) {
+	cKey := C.CString(key)
+	defer C.free(unsafe.Pointer(cKey))
+	var e C.FonError
+	var actualSize C.int64_t
+
+	// First call: query the element count.
+	C.fon_collection_get_collection_array(c.ptr, cKey, nil, 0, &actualSize, &e)
+	if actualSize == 0 {
+		return []*Collection{}, nil
+	}
+
+	// Allocate a slice of void* for the second call.
+	ptrs := make([]unsafe.Pointer, int(actualSize))
+	rc := C.fon_collection_get_collection_array(
+		c.ptr,
+		cKey,
+		(*unsafe.Pointer)(unsafe.Pointer(&ptrs[0])),
+		actualSize,
+		&actualSize,
+		&e,
+	)
+	if err := checkRC(rc, e); err != nil {
+		return nil, err
+	}
+
+	result := make([]*Collection, int(actualSize))
+	for i, p := range ptrs {
+		result[i] = &Collection{ptr: p, owned: false}
+	}
+	return result, nil
 }
 
 
