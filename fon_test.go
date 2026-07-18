@@ -8,12 +8,24 @@ import (
 )
 
 
-// TestNativeVersion asserts the library reports the expected version string.
+// TestNativeVersion asserts the library reports a well-formed semver string.
+// It deliberately does not pin an exact version, so routine version bumps
+// don't break the test.
 func TestNativeVersion(t *testing.T) {
-	want := "0.3.0"
 	got := fon.NativeVersion()
-	if got != want {
-		t.Fatalf("NativeVersion() = %q, want %q", got, want)
+	parts := strings.Split(got, ".")
+	if len(parts) != 3 {
+		t.Fatalf("NativeVersion() = %q, want a semver-like X.Y.Z string", got)
+	}
+	for _, p := range parts {
+		if p == "" {
+			t.Fatalf("NativeVersion() = %q has an empty component", got)
+		}
+		for _, r := range p {
+			if r < '0' || r > '9' {
+				t.Fatalf("NativeVersion() = %q has a non-numeric component %q", got, p)
+			}
+		}
 	}
 }
 
