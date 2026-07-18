@@ -64,7 +64,9 @@ jobs:
 
       - name: Run Go tests (Windows)
         if: runner.os == 'Windows'
-        run: go test -v ./...
+        run: |
+          $env:PATH = "${{ github.workspace }}\native\target\release;" + $env:PATH
+          go test -v ./...
         env:
           CGO_ENABLED: "1"
           CGO_LDFLAGS: "-L${{ github.workspace }}/native/target/release -lfon_native"
