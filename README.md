@@ -6,7 +6,7 @@
 serialization format. Each line is one record; values are typed and can nest.
 
 ```
-go get github.com/FastObjectNotation/FON.go@v0.3.0
+go get github.com/FastObjectNotation/FON.go@latest
 ```
 
 ## Features
@@ -58,7 +58,7 @@ and `o` supports both nested objects (`{...}`) and arrays of objects
 ## Install
 
 ```
-go get github.com/FastObjectNotation/FON.go@v0.3.0
+go get github.com/FastObjectNotation/FON.go@latest
 ```
 
 > **cgo prerequisite:** a C compiler must be present (`gcc` / `mingw-w64` on
