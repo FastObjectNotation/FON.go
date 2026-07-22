@@ -137,7 +137,7 @@ fmt.Println(text) // row 0
 ### Version check
 
 ```go
-fmt.Println(fon.NativeVersion()) // e.g. "0.3.0"
+fmt.Println(fon.NativeVersion()) // the bundled native library version
 ```
 
 ## Build
