@@ -46,7 +46,7 @@ func DeserializeDumpFromBytes(data []byte, maxThreads int) (*Dump, error) {
 	handle := C.fon_deserialize_dump(
 		(*C.uint8_t)(unsafe.Pointer(unsafe.SliceData(data))),
 		C.int64_t(len(data)),
-		C.int32_t(maxThreads),
+		saturateInt32(maxThreads),
 		&e,
 	)
 	if handle == nil {
@@ -60,7 +60,7 @@ func DeserializeDumpFromBytes(data []byte, maxThreads int) (*Dump, error) {
 func DeserializeDumpFromFile(path string, maxThreads int) (*Dump, error) {
 	pathPtr, pathLen := stringArg(path)
 	var e C.FonError
-	handle := C.fon_deserialize_from_file(pathPtr, pathLen, C.int32_t(maxThreads), &e)
+	handle := C.fon_deserialize_from_file(pathPtr, pathLen, saturateInt32(maxThreads), &e)
 	runtime.KeepAlive(path)
 	if handle == nil {
 		return nil, handleError(&e)
@@ -235,7 +235,7 @@ func (d *Dump) SerializeToBytes(maxThreads int) ([]byte, error) {
 	var out *C.uint8_t
 	var outLen C.int64_t
 	var e C.FonError
-	rc := C.fon_serialize_dump(d.handle, C.int32_t(maxThreads), &out, &outLen, &e)
+	rc := C.fon_serialize_dump(d.handle, saturateInt32(maxThreads), &out, &outLen, &e)
 	runtime.KeepAlive(d)
 	if err := nativeError(rc, &e); err != nil {
 		return nil, err
@@ -251,7 +251,7 @@ func (d *Dump) SerializeToFile(path string, maxThreads int) error {
 	}
 	pathPtr, pathLen := stringArg(path)
 	var e C.FonError
-	rc := C.fon_serialize_to_file(d.handle, pathPtr, pathLen, C.int32_t(maxThreads), &e)
+	rc := C.fon_serialize_to_file(d.handle, pathPtr, pathLen, saturateInt32(maxThreads), &e)
 	runtime.KeepAlive(d)
 	return nativeError(rc, &e)
 }

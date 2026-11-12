@@ -23,7 +23,13 @@ typed and can nest.
 ## Format
 
 Each line is one record: a comma-separated list of `key=type:value` pairs. A
-`.fon` file is a sequence of records, indexed by line number (0-based).
+`.fon` file is a sequence of records, indexed by line number (0-based), so an
+empty line is an empty record.
+
+Parsing is strict: malformed text is an error, never a guess. An integer with
+trailing characters, a bool other than `0` or `1`, a missing, doubled or
+trailing comma, a repeated key and an unknown escape are all rejected, and an
+error in a dump names the line (`line 12: ...`).
 
 ```
 name=s:"John",age=i:30,balance=d:1234.56
@@ -239,12 +245,13 @@ fmt.Println(serialized) // blob=r:"Hello"
 data, _ := c.GetRaw("blob")
 fmt.Println(data) // [134 79 210 111]
 
-fon.SetMaxDepth(128)   // nesting limit used when parsing; default 64
+fon.SetMaxDepth(128)   // nesting limit used when parsing; default 64, at most 128
 fon.SetRawUnpack(true) // decode raw blobs while parsing; default off
 ```
 
-Raw values are written as Z85 text, five ASCII characters per four bytes, and
-`GetRaw` always returns the decoded bytes. Both parse settings apply to the
+Raw values are written as Z85 text, five ASCII characters per four bytes (a
+length that is not a multiple of four is padded and marked with one extra
+digit), and `GetRaw` always returns the decoded bytes. Both parse settings apply to the
 whole process. Dump serialization and deserialization take a `maxThreads`
 argument: 0 or less uses all cores, and a positive value caps the threads used
 by that call.
@@ -283,6 +290,10 @@ new view from the parent.
 **Closing.** Closing a dump, or an owned root collection, makes its views report
 `ErrClosed`. `Close` does nothing on a view or on a value that was moved into a
 container.
+
+**Goroutines.** A `Dump`, a `Collection` and their views are not safe for
+concurrent use. Do not use the same dump or collection tree from two goroutines
+at the same time, and do not close it while another goroutine is using it.
 
 **Errors.** Failures are reported as `error` values that work with `errors.Is`:
 an absent key or id matches `ErrNotFound`, a wrong type matches

@@ -25,6 +25,7 @@ import "C"
 import (
 	"errors"
 	"fmt"
+	"math"
 	"unsafe"
 )
 
@@ -105,10 +106,22 @@ func SetRawUnpack(enable bool) {
 	C.fon_set_raw_unpack(value)
 }
 
-// SetMaxDepth sets the maximum nesting depth for deserialization (clamped to >= 1).
-// The setting is global within the native library.
+// SetMaxDepth sets the maximum nesting depth for deserialization (clamped to >= 1;
+// values above 128 act as 128). The setting is global within the native library.
 func SetMaxDepth(depth int) {
-	C.fon_set_max_depth(C.int32_t(depth))
+	C.fon_set_max_depth(saturateInt32(depth))
+}
+
+// saturateInt32 converts to the native 32-bit integer without wrapping: a value
+// outside its range becomes the nearest bound.
+func saturateInt32(value int) C.int32_t {
+	if value > math.MaxInt32 {
+		return C.int32_t(math.MaxInt32)
+	}
+	if value < math.MinInt32 {
+		return C.int32_t(math.MinInt32)
+	}
+	return C.int32_t(value)
 }
 
 // nativeError converts a non-OK result code and the FonError it filled into a

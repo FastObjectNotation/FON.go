@@ -30,6 +30,15 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Check that the tag matches the native library version
+        shell: bash
+        run: |
+          VERSION=$(grep -m1 -oE '^version = "[^"]+"' native/Cargo.toml | cut -d'"' -f2)
+          if [ "v$VERSION" != "$RELEASE_TAG" ]; then
+            echo "::error::tag $RELEASE_TAG does not match native/Cargo.toml version $VERSION"
+            exit 1
+          fi
+
       - name: Set up stable Rust
         uses: dtolnay/rust-toolchain@stable
 
